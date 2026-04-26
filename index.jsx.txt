@@ -1,0 +1,588 @@
+import { useState } from "react";
+
+const API_KEY_STORAGE = "cew_api_key";
+
+export default function App() {
+  const [page, setPage] = useState("home");
+  const [apiKey, setApiKey] = useState("");
+  const [savedKey, setSavedKey] = useState("");
+  const [showKeyModal, setShowKeyModal] = useState(false);
+
+  const [form, setForm] = useState({
+    senderName: "",
+    senderRole: "",
+    product: "",
+    recipientName: "",
+    recipientCompany: "",
+    industry: "",
+    painPoint: "",
+    tone: "professional",
+  });
+
+  const [output, setOutput] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [copied, setCopied] = useState(false);
+
+  const tones = [
+    { id: "professional", label: "Professional" },
+    { id: "friendly", label: "Friendly" },
+    { id: "direct", label: "Direct & Bold" },
+    { id: "storytelling", label: "Story-driven" },
+  ];
+
+  const handleGenerate = async () => {
+    if (!savedKey) {
+      setShowKeyModal(true);
+      return;
+    }
+    if (!form.product || !form.recipientCompany || !form.painPoint) {
+      setError("Please fill in at least: your product, recipient's company, and their pain point.");
+      return;
+    }
+    setError("");
+    setLoading(true);
+    setOutput("");
+
+    const prompt = `Write a high-converting cold sales email with the following details:
+
+Sender: ${form.senderName || "the sender"} (${form.senderRole || "Sales Rep"})
+Product/Service being sold: ${form.product}
+Recipient name: ${form.recipientName || "the prospect"}
+Recipient's company: ${form.recipientCompany}
+Industry: ${form.industry || "their industry"}
+Their main pain point: ${form.painPoint}
+Tone: ${form.tone}
+
+Requirements:
+- Compelling subject line (include it at the top labeled "Subject:")
+- Personalized opener that references their company or pain point
+- One clear value proposition
+- A specific, low-friction CTA (e.g., "15-min call this week?")
+- Under 150 words in the email body
+- No buzzwords, no fluff
+- Sounds like a human wrote it, not a robot
+
+Format: Subject line first, then the email body.`;
+
+    try {
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${savedKey}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+          }),
+        }
+      );
+
+      const data = await res.json();
+      if (data.error) {
+        setError("API error: " + data.error.message);
+      } else {
+        setOutput(data.candidates[0].content.parts[0].text);
+      }
+    } catch (e) {
+      setError("Something went wrong. Check your API key and try again.");
+    }
+    setLoading(false);
+  };
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(output);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const saveKey = () => {
+    setSavedKey(apiKey);
+    setShowKeyModal(false);
+  };
+
+  return (
+    <>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@300;400;500&family=Syne:wght@400;600;700;800&display=swap');
+
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+          --bg: #0a0a0a;
+          --surface: #111111;
+          --surface2: #181818;
+          --border: #2a2a2a;
+          --orange: #ff5c00;
+          --orange-dim: #ff5c0022;
+          --text: #f0ece4;
+          --muted: #666;
+          --green: #00e676;
+        }
+
+        body { background: var(--bg); color: var(--text); font-family: 'Syne', sans-serif; min-height: 100vh; }
+
+        /* NAV */
+        nav {
+          display: flex; align-items: center; justify-content: space-between;
+          padding: 20px 40px; border-bottom: 1px solid var(--border);
+          position: sticky; top: 0; z-index: 100;
+          background: rgba(10,10,10,0.92); backdrop-filter: blur(10px);
+        }
+        .logo { font-family: 'Bebas Neue', sans-serif; font-size: 26px; letter-spacing: 2px; color: var(--orange); cursor: pointer; }
+        .nav-links { display: flex; gap: 12px; align-items: center; }
+        .btn-ghost { background: none; border: 1px solid var(--border); color: var(--text); padding: 8px 20px; border-radius: 6px; cursor: pointer; font-family: 'Syne', sans-serif; font-size: 14px; transition: all 0.2s; }
+        .btn-ghost:hover { border-color: var(--orange); color: var(--orange); }
+        .btn-primary { background: var(--orange); border: none; color: #fff; padding: 10px 24px; border-radius: 6px; cursor: pointer; font-family: 'Syne', sans-serif; font-size: 14px; font-weight: 700; transition: all 0.2s; }
+        .btn-primary:hover { background: #ff7a2e; transform: translateY(-1px); }
+        .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+        /* HERO */
+        .hero {
+          min-height: 88vh; display: flex; flex-direction: column;
+          align-items: center; justify-content: center;
+          padding: 60px 20px; text-align: center; position: relative; overflow: hidden;
+        }
+        .hero::before {
+          content: ''; position: absolute; width: 600px; height: 600px;
+          background: radial-gradient(circle, #ff5c0018 0%, transparent 70%);
+          border-radius: 50%; top: 50%; left: 50%; transform: translate(-50%, -50%);
+          pointer-events: none;
+        }
+        .hero-tag {
+          display: inline-flex; align-items: center; gap: 8px;
+          background: var(--orange-dim); border: 1px solid #ff5c0044;
+          color: var(--orange); padding: 6px 16px; border-radius: 999px;
+          font-size: 12px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
+          margin-bottom: 28px;
+        }
+        .hero-tag::before { content: ''; width: 7px; height: 7px; background: var(--orange); border-radius: 50%; animation: pulse 1.5s infinite; }
+        @keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:0.3;} }
+
+        .hero h1 {
+          font-family: 'Bebas Neue', sans-serif;
+          font-size: clamp(64px, 10vw, 130px);
+          line-height: 0.9; letter-spacing: 3px;
+          color: var(--text); max-width: 900px; margin-bottom: 28px;
+        }
+        .hero h1 span { color: var(--orange); }
+        .hero p { font-size: 18px; color: var(--muted); max-width: 520px; line-height: 1.6; margin-bottom: 40px; font-weight: 400; }
+
+        .hero-cta { display: flex; gap: 16px; flex-wrap: wrap; justify-content: center; }
+        .btn-big { padding: 16px 40px; font-size: 16px; font-weight: 800; border-radius: 8px; }
+
+        .stats { display: flex; gap: 48px; margin-top: 72px; flex-wrap: wrap; justify-content: center; }
+        .stat-item { text-align: center; }
+        .stat-num { font-family: 'Bebas Neue', sans-serif; font-size: 48px; color: var(--orange); letter-spacing: 2px; }
+        .stat-label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 2px; margin-top: 2px; }
+
+        /* FEATURES */
+        .section { padding: 80px 40px; max-width: 1100px; margin: 0 auto; }
+        .section-label { font-size: 11px; text-transform: uppercase; letter-spacing: 3px; color: var(--orange); font-weight: 700; margin-bottom: 16px; }
+        .section-title { font-family: 'Bebas Neue', sans-serif; font-size: clamp(36px, 5vw, 64px); letter-spacing: 2px; line-height: 1; margin-bottom: 48px; }
+
+        .features-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 20px; }
+        .feature-card {
+          background: var(--surface); border: 1px solid var(--border);
+          border-radius: 12px; padding: 28px;
+          transition: all 0.3s; position: relative; overflow: hidden;
+        }
+        .feature-card:hover { border-color: var(--orange); transform: translateY(-3px); }
+        .feature-card::after {
+          content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+          background: linear-gradient(90deg, var(--orange), transparent);
+          opacity: 0; transition: opacity 0.3s;
+        }
+        .feature-card:hover::after { opacity: 1; }
+        .feature-icon { font-size: 28px; margin-bottom: 14px; }
+        .feature-card h3 { font-size: 17px; font-weight: 700; margin-bottom: 8px; }
+        .feature-card p { font-size: 14px; color: var(--muted); line-height: 1.6; }
+
+        /* TOOL */
+        .tool-wrap { background: var(--bg); min-height: 100vh; padding: 40px 20px; }
+        .tool-inner { max-width: 900px; margin: 0 auto; }
+        .tool-header { margin-bottom: 36px; }
+        .tool-header h2 { font-family: 'Bebas Neue', sans-serif; font-size: 52px; letter-spacing: 2px; }
+        .tool-header p { color: var(--muted); font-size: 15px; margin-top: 6px; }
+
+        .tool-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; }
+        @media(max-width: 680px) { .tool-grid { grid-template-columns: 1fr; } }
+
+        .form-panel { display: flex; flex-direction: column; gap: 16px; }
+        .field-group { display: flex; flex-direction: column; gap: 6px; }
+        .field-group label { font-size: 11px; text-transform: uppercase; letter-spacing: 2px; color: var(--muted); font-weight: 700; }
+        .field-group input, .field-group textarea, .field-group select {
+          background: var(--surface); border: 1px solid var(--border);
+          color: var(--text); padding: 12px 14px; border-radius: 8px;
+          font-family: 'DM Mono', monospace; font-size: 14px;
+          transition: border-color 0.2s; outline: none; resize: none;
+          appearance: none; -webkit-appearance: none;
+        }
+        .field-group input:focus, .field-group textarea:focus, .field-group select:focus { border-color: var(--orange); }
+        .field-group select option { background: var(--surface2); }
+
+        .tone-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .tone-btn {
+          background: var(--surface); border: 1px solid var(--border);
+          color: var(--muted); padding: 10px; border-radius: 8px;
+          cursor: pointer; font-family: 'Syne', sans-serif; font-size: 13px;
+          font-weight: 600; transition: all 0.2s; text-align: center;
+        }
+        .tone-btn.active { background: var(--orange-dim); border-color: var(--orange); color: var(--orange); }
+        .tone-btn:hover:not(.active) { border-color: #444; color: var(--text); }
+
+        .output-panel { display: flex; flex-direction: column; gap: 16px; }
+        .output-box {
+          background: var(--surface); border: 1px solid var(--border);
+          border-radius: 12px; padding: 24px; flex: 1;
+          font-family: 'DM Mono', monospace; font-size: 14px;
+          line-height: 1.8; color: var(--text); white-space: pre-wrap;
+          min-height: 340px; position: relative;
+        }
+        .output-placeholder { color: var(--muted); font-style: italic; font-size: 13px; }
+
+        .output-actions { display: flex; gap: 10px; }
+        .btn-copy {
+          flex: 1; background: var(--surface2); border: 1px solid var(--border);
+          color: var(--text); padding: 12px; border-radius: 8px;
+          cursor: pointer; font-family: 'Syne', sans-serif; font-size: 14px;
+          font-weight: 600; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px;
+        }
+        .btn-copy:hover { border-color: var(--green); color: var(--green); }
+        .btn-copy.copied { border-color: var(--green); color: var(--green); background: #00e67611; }
+
+        .error-box { background: #ff000011; border: 1px solid #ff000033; color: #ff6b6b; padding: 12px 16px; border-radius: 8px; font-size: 13px; }
+
+        .loading-dots span {
+          display: inline-block; width: 7px; height: 7px; background: var(--orange);
+          border-radius: 50%; margin: 0 3px; animation: bounce 1.2s infinite;
+        }
+        .loading-dots span:nth-child(2) { animation-delay: 0.2s; }
+        .loading-dots span:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes bounce { 0%,60%,100%{transform:translateY(0);} 30%{transform:translateY(-10px);} }
+
+        /* MODAL */
+        .modal-overlay {
+          position: fixed; inset: 0; background: rgba(0,0,0,0.85);
+          display: flex; align-items: center; justify-content: center;
+          z-index: 999; padding: 20px;
+        }
+        .modal-box {
+          background: var(--surface); border: 1px solid var(--border);
+          border-radius: 16px; padding: 36px; max-width: 480px; width: 100%;
+        }
+        .modal-box h3 { font-size: 22px; font-weight: 800; margin-bottom: 8px; }
+        .modal-box p { color: var(--muted); font-size: 14px; line-height: 1.6; margin-bottom: 20px; }
+        .modal-box a { color: var(--orange); }
+        .modal-actions { display: flex; gap: 10px; margin-top: 20px; }
+
+        /* KEY BADGE */
+        .key-badge {
+          display: inline-flex; align-items: center; gap: 8px;
+          background: #00e67611; border: 1px solid #00e67633;
+          color: var(--green); padding: 6px 14px; border-radius: 6px;
+          font-size: 12px; font-family: 'DM Mono', monospace;
+        }
+
+        /* divider */
+        .divider { border: none; border-top: 1px solid var(--border); margin: 0; }
+
+        /* HOW IT WORKS */
+        .steps { display: flex; flex-direction: column; gap: 0; }
+        .step { display: flex; gap: 24px; padding: 32px 0; border-bottom: 1px solid var(--border); }
+        .step-num { font-family: 'Bebas Neue', sans-serif; font-size: 56px; color: var(--border); line-height: 1; min-width: 60px; }
+        .step-content h3 { font-size: 18px; font-weight: 700; margin-bottom: 6px; }
+        .step-content p { font-size: 14px; color: var(--muted); line-height: 1.6; }
+
+        /* PRICING */
+        .pricing-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px; }
+        .pricing-card {
+          background: var(--surface); border: 1px solid var(--border);
+          border-radius: 12px; padding: 32px; text-align: center;
+        }
+        .pricing-card.featured { border-color: var(--orange); position: relative; }
+        .pricing-card.featured::before {
+          content: 'MOST POPULAR'; position: absolute; top: -12px; left: 50%; transform: translateX(-50%);
+          background: var(--orange); color: #fff; font-size: 11px; font-weight: 800;
+          letter-spacing: 2px; padding: 4px 14px; border-radius: 999px;
+        }
+        .price { font-family: 'Bebas Neue', sans-serif; font-size: 56px; color: var(--text); letter-spacing: 2px; }
+        .price-period { font-size: 14px; color: var(--muted); margin-bottom: 24px; }
+        .price-features { list-style: none; text-align: left; margin-bottom: 28px; display: flex; flex-direction: column; gap: 10px; }
+        .price-features li { font-size: 14px; display: flex; gap: 8px; }
+        .price-features li::before { content: '✓'; color: var(--green); font-weight: 700; }
+
+        @media(max-width: 600px) {
+          nav { padding: 16px 20px; }
+          .section { padding: 60px 20px; }
+          .hero h1 { font-size: 56px; }
+          .stats { gap: 28px; }
+        }
+      `}</style>
+
+      {/* NAV */}
+      <nav>
+        <div className="logo" onClick={() => setPage("home")}>COLDCRAFT</div>
+        <div className="nav-links">
+          {savedKey ? (
+            <span className="key-badge">🔑 API Key Connected</span>
+          ) : (
+            <button className="btn-ghost" onClick={() => setShowKeyModal(true)}>Add API Key</button>
+          )}
+          <button className="btn-primary" onClick={() => setPage(page === "tool" ? "home" : "tool")}>
+            {page === "tool" ? "← Home" : "Try Free →"}
+          </button>
+        </div>
+      </nav>
+
+      {/* HOME PAGE */}
+      {page === "home" && (
+        <>
+          {/* HERO */}
+          <section className="hero">
+            <div className="hero-tag">AI-Powered ⚡ Zero Fluff</div>
+            <h1>COLD EMAILS<br />THAT <span>CLOSE</span></h1>
+            <p>Generate hyper-personalized cold emails in seconds. Stop staring at a blank screen. Start booking meetings.</p>
+            <div className="hero-cta">
+              <button className="btn-primary btn-big" onClick={() => setPage("tool")}>Generate Free Email →</button>
+              <button className="btn-ghost btn-big" onClick={() => document.getElementById('how').scrollIntoView({behavior:'smooth'})}>See How It Works</button>
+            </div>
+            <div className="stats">
+              <div className="stat-item"><div className="stat-num">30s</div><div className="stat-label">Per Email</div></div>
+              <div className="stat-item"><div className="stat-num">4×</div><div className="stat-label">Reply Rates</div></div>
+              <div className="stat-item"><div className="stat-num">150</div><div className="stat-label">Word Max</div></div>
+              <div className="stat-item"><div className="stat-num">100%</div><div className="stat-label">Human-Sounding</div></div>
+            </div>
+          </section>
+
+          <hr className="divider" />
+
+          {/* FEATURES */}
+          <div className="section">
+            <div className="section-label">Why ColdCraft</div>
+            <div className="section-title">BUILT FOR<br />CLOSERS</div>
+            <div className="features-grid">
+              {[
+                { icon: "🎯", title: "Hyper-Personalized", desc: "Enter their company, industry, and pain point. Get an email that sounds like you researched them for hours." },
+                { icon: "⚡", title: "Under 150 Words", desc: "Short emails get read. Long emails get deleted. Every output is punchy, clear, and respects their time." },
+                { icon: "🎭", title: "4 Tones", desc: "Professional, Friendly, Direct & Bold, or Story-driven. Match your brand and your prospect's personality." },
+                { icon: "📋", title: "One-Click Copy", desc: "Hit generate, hit copy, paste into Gmail. Done. No editing required — unless you want to." },
+                { icon: "🔒", title: "Your Data Stays Yours", desc: "We don't store your inputs or your emails. Your API key lives in your browser only." },
+                { icon: "💸", title: "Pay As You Grow", desc: "The tool is free to use. You only pay Anthropic pennies per email — less than $0.01 each." },
+              ].map((f, i) => (
+                <div className="feature-card" key={i}>
+                  <div className="feature-icon">{f.icon}</div>
+                  <h3>{f.title}</h3>
+                  <p>{f.desc}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <hr className="divider" />
+
+          {/* HOW IT WORKS */}
+          <div className="section" id="how">
+            <div className="section-label">Process</div>
+            <div className="section-title">HOW IT<br />WORKS</div>
+            <div className="steps">
+              {[
+                { n: "01", title: "Enter Your Details", desc: "Tell us your name, your product, and who you're emailing. Takes 60 seconds." },
+                { n: "02", title: "Describe Their Pain", desc: "What problem does your prospect have that you solve? The more specific, the better the email." },
+                { n: "03", title: "Pick Your Tone", desc: "Professional for enterprise, Friendly for SMBs, Direct for busy executives, Story for warm audiences." },
+                { n: "04", title: "Hit Generate", desc: "Our AI writes a subject line + email body in under 30 seconds, ready to send." },
+              ].map((s, i) => (
+                <div className="step" key={i}>
+                  <div className="step-num">{s.n}</div>
+                  <div className="step-content"><h3>{s.title}</h3><p>{s.desc}</p></div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <hr className="divider" />
+
+          {/* PRICING */}
+          <div className="section">
+            <div className="section-label">Pricing</div>
+            <div className="section-title">SIMPLE &<br />HONEST</div>
+            <div className="pricing-cards">
+              <div className="pricing-card">
+                <div className="price">FREE</div>
+                <div className="price-period">forever (with your API key)</div>
+                <ul className="price-features">
+                  <li>Unlimited email generation</li>
+                  <li>All 4 tone styles</li>
+                  <li>Full personalization fields</li>
+                  <li>One-click copy</li>
+                </ul>
+                <button className="btn-ghost" style={{width:'100%'}} onClick={() => setPage("tool")}>Get Started Free</button>
+              </div>
+              <div className="pricing-card featured">
+                <div className="price">$29</div>
+                <div className="price-period">per month (coming soon)</div>
+                <ul className="price-features">
+                  <li>Everything in Free</li>
+                  <li>No API key needed</li>
+                  <li>Bulk email generation</li>
+                  <li>Email sequence builder</li>
+                  <li>A/B subject line tester</li>
+                  <li>CRM integrations</li>
+                </ul>
+                <button className="btn-primary" style={{width:'100%'}} disabled>Join Waitlist</button>
+              </div>
+            </div>
+          </div>
+
+          <hr className="divider" />
+
+          {/* FOOTER CTA */}
+          <div style={{textAlign:'center', padding:'80px 20px'}}>
+            <div className="section-label" style={{marginBottom:16}}>Ready?</div>
+            <h2 style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:'clamp(48px,8vw,96px)',letterSpacing:'3px',marginBottom:24}}>
+              START WRITING<br /><span style={{color:'var(--orange)'}}>BETTER EMAILS</span>
+            </h2>
+            <button className="btn-primary btn-big" onClick={() => setPage("tool")}>Generate Your First Email →</button>
+            <p style={{color:'var(--muted)',fontSize:13,marginTop:20}}>No signup. No credit card. Just bring your Anthropic API key.</p>
+          </div>
+
+          <div style={{borderTop:'1px solid var(--border)',padding:'24px 40px',display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:12}}>
+            <span className="logo" style={{fontSize:20}}>COLDCRAFT</span>
+            <span style={{color:'var(--muted)',fontSize:13}}>Powered by Claude AI · Built for closers</span>
+          </div>
+        </>
+      )}
+
+      {/* TOOL PAGE */}
+      {page === "tool" && (
+        <div className="tool-wrap">
+          <div className="tool-inner">
+            <div className="tool-header">
+              <h2>EMAIL GENERATOR</h2>
+              <p>Fill in the details below and we'll write your cold email.</p>
+            </div>
+
+            {!savedKey && (
+              <div style={{background:'var(--orange-dim)',border:'1px solid #ff5c0044',borderRadius:10,padding:'14px 20px',marginBottom:24,display:'flex',alignItems:'center',justifyContent:'space-between',flexWrap:'wrap',gap:12}}>
+                <span style={{fontSize:14,color:'var(--orange)'}}>⚠️ Add your Anthropic API key to start generating emails.</span>
+                <button className="btn-primary" onClick={() => setShowKeyModal(true)}>Add API Key</button>
+              </div>
+            )}
+
+            <div className="tool-grid">
+              {/* LEFT: FORM */}
+              <div className="form-panel">
+                <div style={{fontSize:11,textTransform:'uppercase',letterSpacing:2,color:'var(--orange)',fontWeight:700,marginBottom:4}}>Your Info</div>
+                <div className="field-group">
+                  <label>Your Name</label>
+                  <input placeholder="e.g. Alex Rivera" value={form.senderName} onChange={e=>setForm({...form,senderName:e.target.value})}/>
+                </div>
+                <div className="field-group">
+                  <label>Your Role</label>
+                  <input placeholder="e.g. Head of Sales at Acme" value={form.senderRole} onChange={e=>setForm({...form,senderRole:e.target.value})}/>
+                </div>
+                <div className="field-group">
+                  <label>What You're Selling *</label>
+                  <input placeholder="e.g. AI scheduling tool for agencies" value={form.product} onChange={e=>setForm({...form,product:e.target.value})}/>
+                </div>
+
+                <div style={{fontSize:11,textTransform:'uppercase',letterSpacing:2,color:'var(--orange)',fontWeight:700,marginTop:8,marginBottom:4}}>Their Info</div>
+                <div className="field-group">
+                  <label>Recipient Name</label>
+                  <input placeholder="e.g. Sarah Chen" value={form.recipientName} onChange={e=>setForm({...form,recipientName:e.target.value})}/>
+                </div>
+                <div className="field-group">
+                  <label>Their Company *</label>
+                  <input placeholder="e.g. Growth Labs Inc." value={form.recipientCompany} onChange={e=>setForm({...form,recipientCompany:e.target.value})}/>
+                </div>
+                <div className="field-group">
+                  <label>Their Industry</label>
+                  <input placeholder="e.g. Digital Marketing Agency" value={form.industry} onChange={e=>setForm({...form,industry:e.target.value})}/>
+                </div>
+                <div className="field-group">
+                  <label>Their Main Pain Point *</label>
+                  <textarea rows={3} placeholder="e.g. Spending too much time manually scheduling client calls across time zones" value={form.painPoint} onChange={e=>setForm({...form,painPoint:e.target.value})}/>
+                </div>
+
+                <div style={{fontSize:11,textTransform:'uppercase',letterSpacing:2,color:'var(--orange)',fontWeight:700,marginTop:8,marginBottom:8}}>Tone</div>
+                <div className="tone-grid">
+                  {tones.map(t => (
+                    <button key={t.id} className={`tone-btn${form.tone===t.id?' active':''}`} onClick={()=>setForm({...form,tone:t.id})}>{t.label}</button>
+                  ))}
+                </div>
+
+                <button className="btn-primary" style={{marginTop:8,padding:'14px',fontSize:15,fontWeight:800}} onClick={handleGenerate} disabled={loading}>
+                  {loading ? "Generating..." : "⚡ Generate Email"}
+                </button>
+              </div>
+
+              {/* RIGHT: OUTPUT */}
+              <div className="output-panel">
+                <div style={{fontSize:11,textTransform:'uppercase',letterSpacing:2,color:'var(--orange)',fontWeight:700}}>Your Email</div>
+                <div className="output-box">
+                  {loading ? (
+                    <div style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',height:'100%',gap:16}}>
+                      <div className="loading-dots"><span/><span/><span/></div>
+                      <p style={{color:'var(--muted)',fontSize:13}}>Writing your email...</p>
+                    </div>
+                  ) : output ? output : (
+                    <p className="output-placeholder">Your generated email will appear here.<br/><br/>Fill in the form and hit Generate. ✉️</p>
+                  )}
+                </div>
+
+                {error && <div className="error-box">{error}</div>}
+
+                {output && (
+                  <div className="output-actions">
+                    <button className={`btn-copy${copied?' copied':''}`} onClick={handleCopy}>
+                      {copied ? "✓ Copied!" : "📋 Copy Email"}
+                    </button>
+                    <button className="btn-copy" onClick={()=>setOutput("")} style={{flex:'0 0 auto',padding:'12px 20px'}}>
+                      🔄
+                    </button>
+                  </div>
+                )}
+
+                <div style={{background:'var(--surface)',border:'1px solid var(--border)',borderRadius:10,padding:'16px 20px'}}>
+                  <p style={{fontSize:12,color:'var(--muted)',lineHeight:1.7}}>
+                    💡 <strong style={{color:'var(--text)'}}>Pro tip:</strong> Personalize the opening line with something specific from their LinkedIn or website. Generic openers get ignored — specific ones get replies.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* API KEY MODAL */}
+      {showKeyModal && (
+        <div className="modal-overlay" onClick={()=>setShowKeyModal(false)}>
+          <div className="modal-box" onClick={e=>e.stopPropagation()}>
+            <h3>🔑 Add Your API Key</h3>
+            <p>
+              ColdCraft uses Google Gemini AI to generate emails. You need a free API key — no credit card required.<br/><br/>
+              👉 Get one free at <a href="https://aistudio.google.com" target="_blank" rel="noreferrer">aistudio.google.com</a> → "Get API Key" → "Create API Key"<br/><br/>
+              Your key is stored only in your browser and never sent to our servers.
+            </p>
+            <div className="field-group">
+              <label>Google Gemini API Key</label>
+              <input
+                type="password"
+                placeholder="AIzaSy..."
+                value={apiKey}
+                onChange={e=>setApiKey(e.target.value)}
+                onKeyDown={e=>e.key==='Enter'&&saveKey()}
+                style={{fontFamily:"'DM Mono',monospace"}}
+              />
+            </div>
+            <div className="modal-actions">
+              <button className="btn-ghost" style={{flex:1}} onClick={()=>setShowKeyModal(false)}>Cancel</button>
+              <button className="btn-primary" style={{flex:2}} onClick={saveKey} disabled={!apiKey.length >= 10}>
+                Save & Continue
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
